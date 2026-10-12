@@ -1,0 +1,77 @@
+{% extends 'base.html' %}
+{% block title %}HiveHR · Employees{% endblock %}
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        {% include 'menu.html' %}
+        <main class="col p-4">
+            <h1 class="mb-4">Employees</h1>
+
+            <div class="box">
+                <!-- البحث والفلتر -->
+                <form action="/employees" method="GET" class="row g-2 mb-4">
+                    <div class="col-md-6">
+                        <input type="text" name="search" value="{{ search }}" class="form-control" placeholder="Search by name or job title...">
+                    </div>
+                    <div class="col-md-4">
+                        <select name="department" class="form-select">
+                            <option value="">All departments</option>
+                            {% for d in departments %}
+                                <option value="{{ d.id }}" {% if d.id == selected_dept %}selected{% endif %}>{{ d.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <button type="submit" class="btn btn-primary w-100">Search</button>
+                    </div>
+                </form>
+
+                <!-- جدول الموظفين -->
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Department</th>
+                                <th>Job title</th>
+                                <th>Hire date</th>
+                                <th>Role</th>
+                                {% if me.is_management %}<th></th>{% endif %}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for e in employees %}
+                            <tr>
+                                <td>
+                                    <div class="fw-semibold">{{ e.first_name }} {{ e.last_name }}</div>
+                                    <small class="text-secondary">{{ e.email }}</small>
+                                </td>
+                                <td>{{ e.department.name|default:"—" }}</td>
+                                <td>{{ e.job_title|default:"—" }}</td>
+                                <td>{{ e.hire_date|date:"d M Y"|default:"—" }}</td>
+                                <td>
+                                    {% if e.is_management %}
+                                        <span class="badge rounded-pill text-bg-primary">Management</span>
+                                    {% elif e.managed_departments.exists %}
+                                        <span class="badge rounded-pill text-bg-info">Manager</span>
+                                    {% else %}
+                                        <span class="badge rounded-pill text-bg-light">Employee</span>
+                                    {% endif %}
+                                </td>
+                                {% if me.is_management %}
+                                <td><a href="/employees/{{ e.id }}/edit" class="btn btn-sm btn-outline-primary">Edit</a></td>
+                                {% endif %}
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="6" class="text-center text-secondary py-4">No employees found.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </main>
+    </div>
+</div>
+{% endblock %}

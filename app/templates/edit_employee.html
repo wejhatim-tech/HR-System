@@ -1,0 +1,57 @@
+{% extends 'base.html' %}
+{% block title %}HiveHR · Edit employee{% endblock %}
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        {% include 'menu.html' %}
+        <main class="col p-4">
+            <a href="/employees" class="d-inline-block mb-3">← Back to employees</a>
+            <h1 class="mb-4">{{ employee.first_name }} {{ employee.last_name }}</h1>
+
+            <div class="box form-box">
+                {% if messages %}
+                    {% for message in messages %}
+                        <div class="alert alert-danger py-2">{{ message }}</div>
+                    {% endfor %}
+                {% endif %}
+
+                <form action="/employees/{{ employee.id }}/update" method="POST">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Department</label>
+                        <select name="department" class="form-select">
+                            <option value="">No department</option>
+                            {% for d in departments %}
+                                <option value="{{ d.id }}" {% if d.id == employee.department_id %}selected{% endif %}>{{ d.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Job title</label>
+                        <input type="text" name="job_title" value="{{ employee.job_title }}" class="form-control">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Phone</label>
+                        <input type="text" name="phone" value="{{ employee.phone }}" class="form-control">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Hire date</label>
+                        <input type="date" name="hire_date" value="{{ employee.hire_date|date:'Y-m-d' }}" class="form-control">
+                    </div>
+                    <div class="form-check mb-2">
+                        <input type="checkbox" name="is_manager" id="is_manager" class="form-check-input"
+                            {% if employee.department and employee.department.manager_id == employee.id %}checked{% endif %}>
+                        <label for="is_manager" class="form-check-label">Manager of this department</label>
+                    </div>
+                    <div class="form-check mb-4">
+                        <input type="checkbox" name="is_management" id="is_management" class="form-check-input"
+                            {% if employee.is_management %}checked{% endif %}>
+                        <label for="is_management" class="form-check-label">Management (top managers)</label>
+                    </div>
+                    <button type="submit" class="btn btn-primary w-100">Save</button>
+                </form>
+            </div>
+        </main>
+    </div>
+</div>
+{% endblock %}

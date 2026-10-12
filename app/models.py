@@ -1,5 +1,6 @@
 from django.db import models
 import re
+from datetime import date
 
 EMAIL_REGEX = re.compile(r'^[a-zA-Z0-9.+_-]+@[a-zA-Z0-9._-]+\.[a-zA-Z]+$')
 
@@ -30,12 +31,27 @@ class EmployeeManager(models.Manager):
             errors['password'] = "Password is required"
         return errors
 
+    def update_validation(self, formdata):
+        errors = {}
+        if len(formdata['job_title']) > 0 and len(formdata['job_title']) < 2:
+            errors['job_title'] = "Job title must be at least 2 characters"
+        if len(formdata['phone']) > 0:
+            if not formdata['phone'].isdigit():
+                errors['phone'] = "Phone must contain numbers only"
+            elif len(formdata['phone']) < 9 or len(formdata['phone']) > 15:
+                errors['phone'] = "Phone must be 9 to 15 digits"
+        if formdata['hire_date'] and formdata['hire_date'] > str(date.today()):
+            errors['hire_date'] = "Hire date can't be in the future"
+        return errors
+
 
 class Branch(models.Model):
     name = models.CharField(max_length=100)
     ip_address = models.CharField(max_length=45)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    def __str__(self):
+        return self.name
 
 
 class Department(models.Model):
@@ -43,6 +59,8 @@ class Department(models.Model):
     manager = models.ForeignKey('Employee', related_name='managed_departments',null=True, blank=True, on_delete=models.SET_NULL)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    def __str__(self):
+        return self.name
 
 
 class Employee(models.Model):
@@ -58,6 +76,8 @@ class Employee(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     objects = EmployeeManager()
+    def __str__(self):
+        return self.first_name + " " + self.last_name
 
 
 class Attendance(models.Model):
@@ -78,6 +98,8 @@ class LeaveType(models.Model):
     is_hourly = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    def __str__(self):
+        return self.name
 
 
 class LeaveRequest(models.Model):
