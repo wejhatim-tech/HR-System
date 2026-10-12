@@ -57,3 +57,8 @@ def dashboard(request):
         'employee': models.Employee.objects.get(id=request.session['user_id']),
     }
     return render(request, 'dashboard.html', context)
+
+def about(request):
+    if 'user_id' not in request.session:
+        return redirect('/')
+    return render(request, 'about.html')

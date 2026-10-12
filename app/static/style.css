@@ -75,3 +75,68 @@ h1, h2, h3, .logo-text {
         min-height: auto;
     }
 }
+/* القائمة الجانبية */
+.menu {
+    background: #FFFFFF;
+    border-right: 1px solid var(--border);
+    min-height: 100vh;
+}
+
+.menu a {
+    display: block;
+    padding: 12px 14px;
+    margin-bottom: 4px;
+    border-radius: 12px;
+    color: #3F4A58;
+    text-decoration: none;
+    font-weight: 500;
+}
+
+.menu a:hover {
+    background: var(--ground);
+}
+
+.menu a.active {
+    background: #DCEFFB;
+    color: var(--primary-dark);
+    font-weight: 600;
+}
+
+/* لوجو أزرق للقائمة */
+.logo-blue {
+    background: var(--primary);
+    color: #FFFFFF;
+}
+
+/* صندوق أبيض للمحتوى */
+.box {
+    background: #FFFFFF;
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    padding: 24px;
+}
+
+/* شارة صغيرة */
+.tag {
+    display: inline-block;
+    padding: 6px 14px;
+    border-radius: 999px;
+    background: #EEF1F4;
+    color: #3F4A58;
+    font-weight: 600;
+    font-size: 14px;
+}
+
+@media (max-width: 767px) {
+    .menu {
+        min-height: auto;
+    }
+}
+
+/* كرت المطورة */
+.dev-card {
+    background: var(--primary);
+    color: #FFFFFF;
+    border-radius: 18px;
+    padding: 24px;
+}

@@ -1,0 +1,63 @@
+{% extends 'base.html' %}
+{% block title %}HiveHR · About us{% endblock %}
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        {% include 'menu.html' %}
+        <main class="col p-4">
+            <!-- المشكلة -->
+            <div class="box mb-4">
+                <span class="tag mb-3">About HiveHR</span>
+                <h1 class="mb-3">Paper sign-in sheets and lost leave forms shouldn't run a company.</h1>
+                <p class="fs-5 text-secondary mb-0">Many companies still track attendance on paper or in spreadsheets. HiveHR brings check-ins, employee records and leave approvals into one simple web app that works on any laptop or phone.</p>
+            </div>
+
+            <!-- المميزات -->
+            <div class="row g-3 mb-4">
+                <div class="col-md-4">
+                    <div class="box h-100">
+                        <h2 class="h5">One-click attendance</h2>
+                        <p class="text-secondary mb-0">Check in from the office network, and see who's on time or late.</p>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="box h-100">
+                        <h2 class="h5">Leave without paperwork</h2>
+                        <p class="text-secondary mb-0">Request leave, see your balance, and get approved by your manager online.</p>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="box h-100">
+                        <h2 class="h5">AI summaries</h2>
+                        <p class="text-secondary mb-0">Managers get a short AI summary of each employee's month.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- التقنيات والمطورة -->
+            <div class="row g-3">
+                <div class="col-md-8">
+                    <div class="box h-100">
+                        <h2 class="h5 mb-3">Built with</h2>
+                        <span class="tag me-1 mb-2">Python · Django</span>
+                        <span class="tag me-1 mb-2">Bootstrap 5</span>
+                        <span class="tag me-1 mb-2">AJAX</span>
+                        <span class="tag me-1 mb-2">SQLite</span>
+                        <span class="tag me-1 mb-2">AI</span>
+                        <span class="tag me-1 mb-2">AWS</span>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="dev-card h-100 d-flex align-items-center gap-3">
+                        <span class="logo">WH</span>
+                        <div>
+                            <div class="fw-bold">Wejdan Hatim</div>
+                            <small>Full-stack developer · Axsos Academy, Nablus</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,12 @@
+<!-- القائمة الجانبية -->
+<nav class="menu col-md-3 col-lg-2 p-3 d-flex flex-column">
+    <div class="d-flex align-items-center gap-2 mb-4 px-2">
+        <span class="logo logo-blue">H</span>
+        <span class="logo-text">HiveHR</span>
+    </div>
+    <a href="/dashboard" class="{% if request.path == '/dashboard' %}active{% endif %}">Dashboard</a>
+    <a href="/employees" class="{% if request.path == '/employees' %}active{% endif %}">Employees</a>
+    <a href="/leaves" class="{% if request.path == '/leaves' %}active{% endif %}">Leave requests</a>
+    <a href="/about" class="{% if request.path == '/about' %}active{% endif %}">About us</a>
+    <a href="/logout" class="mt-auto">Log out</a>
+</nav>
