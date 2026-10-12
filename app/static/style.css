@@ -1,0 +1,77 @@
+:root {
+    --primary: #1A78B8;
+    --primary-dark: #145A8A;
+    --ground: #F2F8FD;
+    --ink: #17212E;
+    --muted: #5B6675;
+    --border: #E3E7EC;
+}
+
+body {
+    background: var(--ground);
+    color: var(--ink);
+    font-family: 'DM Sans', sans-serif;
+}
+
+h1, h2, h3, .logo-text {
+    font-family: 'Sora', sans-serif;
+    font-weight: 700;
+}
+
+.btn, .form-control, .form-select {
+    border-radius: 12px;
+    min-height: 46px;
+}
+
+.btn-primary {
+    background: var(--primary);
+    border-color: var(--primary);
+}
+
+.btn-primary:hover {
+    background: var(--primary-dark);
+    border-color: var(--primary-dark);
+}
+
+.left-side {
+    background: var(--primary);
+    color: #FFFFFF;
+    min-height: 100vh;
+}
+
+.logo {
+    width: 42px;
+    height: 46px;
+    background: #FFFFFF;
+    color: var(--primary);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+}
+
+.logo-text {
+    font-size: 24px;
+}
+
+.form-box {
+    max-width: 440px;
+    border: 1px solid var(--border);
+    border-radius: 22px;
+}
+
+.nav-pills .nav-link {
+    color: var(--muted);
+    font-weight: 600;
+}
+
+.nav-pills .nav-link.active {
+    background: var(--primary);
+}
+
+@media (max-width: 767px) {
+    .left-side {
+        min-height: auto;
+    }
+}

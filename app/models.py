@@ -20,7 +20,9 @@ class EmployeeManager(models.Manager):
         if formdata['password'] != formdata['confirm_password']:
             errors['confirm_password'] = "Passwords do not match"
         return errors
-def login_validation(self, formdata):
+
+
+    def login_validation(self, formdata):
         errors = {}
         if len(formdata['email']) == 0:
             errors['email'] = "Email is required"
