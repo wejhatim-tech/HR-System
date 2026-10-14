@@ -5,6 +5,10 @@ from django.http import JsonResponse
 from django.utils import timezone
 from datetime import datetime, time
 import bcrypt
+import os
+from google import genai
+
+AI_MODEL = 'gemini-flash-latest'
 
 from .models import *
 from . import models
@@ -383,3 +387,79 @@ def decide_leave(request, id):
     leave.is_seen = False      # الموظف لسا ما شاف القرار ← بيطلعله إشعار على الـ Dashboard
     leave.save()
     return JsonResponse({'ok': True, 'status': action})
+
+# ===================== ملخص AI =====================
+def ai_summary(request, id):
+    if 'user_id' not in request.session:
+        return JsonResponse({'ok': False, 'msg': 'Please log in first'})
+    if request.method != 'POST':
+        return JsonResponse({'ok': False, 'msg': 'Invalid request'})
+    me = Employee.objects.get(id=request.session['user_id'])
+
+    emp = Employee.objects.filter(id=id).first()
+    if not emp:
+        return JsonResponse({'ok': False, 'msg': 'Employee not found'})
+    # بس الإدارة أو مدير قسم الموظف
+    if not (me.is_management or (emp.department and emp.department.manager_id == me.id)):
+        return JsonResponse({'ok': False, 'msg': 'You are not allowed to view this summary'})
+
+    # بيانات الشهر الحالي
+    today = timezone.localdate()
+    month_start = today.replace(day=1)
+
+    # نبلّش العد من يوم ما انضاف الموظف (إذا انضاف بنص الشهر)
+    start_day = month_start
+    joined = timezone.localtime(emp.created_at).date()
+    if joined > start_day:
+        start_day = joined
+    if emp.hire_date and emp.hire_date > start_day:
+        start_day = emp.hire_date
+
+    records = emp.attendances.filter(date__gte=month_start)
+    days_present = records.count()
+    late_days = records.filter(status='late').count()
+
+    # أيام نسي فيها يعمل Check out (ما بنحسب اليوم لأنه لسا ما خلص)
+    no_checkout = 0
+    for r in records:
+        if not r.check_out and r.date != today:
+            no_checkout += 1
+
+    month_leaves = emp.leave_requests.filter(start_date__gte=month_start)
+    approved_hours = 0
+    for l in month_leaves.filter(status='approved'):
+        approved_hours += l.hours
+    pending_count = month_leaves.filter(status='pending').count()
+
+    annual = LeaveType.objects.filter(name__icontains='annual').first()
+    remaining = '-'
+    if annual and annual.hours_per_year:
+        remaining = hours_text(annual.hours_per_year - used_hours(emp, annual, ['approved']))
+
+    # الجدول: أرقام محسوبة بالسيرفر (مش من الـ AI)
+    stats = [
+        ['Days checked in', f'{days_present} of {working_days(start_day, today)}'],
+        ['Late days', late_days],
+        ['Days without check-out', no_checkout],
+        ['Approved leave', hours_text(approved_hours)],
+        ['Pending requests', pending_count],
+        ['Annual balance left', remaining],
+    ]
+
+    # البرومبت: أرقام بس، بدون اسم أو معلومات شخصية
+    data_text = '\n'.join(f'{label}: {value}' for label, value in stats)
+    prompt = f"""You are an HR assistant. Based only on these monthly numbers for one employee,
+write exactly 2 short sentences for their manager: one key observation, then one practical recommendation.
+Plain text only, no markdown, no lists. Refer to the person as "the employee". Do not invent numbers.
+
+Month: {today.strftime('%B %Y')} (until today)
+{data_text}"""
+
+    try:
+        client = genai.Client(api_key=os.getenv('GEMINI_API_KEY'))
+        response = client.models.generate_content(model=AI_MODEL, contents=prompt)
+        summary = response.text
+    except Exception:
+        summary = 'AI insight is not available right now.'
+
+    return JsonResponse({'ok': True, 'name': str(emp), 'stats': stats, 'summary': summary})

@@ -1,75 +1,99 @@
 {% extends 'base.html' %}
-{% block title %}HiveHR · Dashboard{% endblock %}
+{% block title %}Dashboard · HiveHR{% endblock %}
+
 {% block content %}
 <div class="container-fluid">
     <div class="row">
         {% include 'menu.html' %}
-        <main class="col">
+
+        <main class="col-md-9 col-lg-10 p-4">
             <div class="content">
-                <h1 class="mb-1">Welcome, {{ employee.first_name }}</h1>
-                <p class="text-muted mb-4">{{ today|date:"l, d F Y" }}</p>
+                <h1>Welcome, {{ employee.first_name }}</h1>
+                <p class="text-muted mb-4">{{ today|date:'l, j F Y' }}</p>
+
+                <!-- إشعارات قرارات الإجازات -->
+                {% for n in notifications %}
+                <div class="alert {% if n.status == 'approved' %}alert-success{% else %}alert-danger{% endif %} d-flex justify-content-between align-items-center gap-2">
+                    <span>
+                        {% if n.status == 'approved' %}✅{% else %}❌{% endif %}
+                        Your <b>{{ n.leave_type.name }}</b>
+                        ({{ n.start_date|date:'d M' }}{% if n.end_date != n.start_date %} – {{ n.end_date|date:'d M' }}{% endif %})
+                        was <b>{{ n.status }}</b> by {{ n.decided_by }}
+                    </span>
+                    <a href="/leaves" class="btn btn-sm btn-light">View</a>
+                </div>
+                {% endfor %}
 
                 <!-- كرت الحضور -->
-                <div class="checkin-card">
+                <div class="checkin-card mb-3">
                     <div>
-                        <div class="small">Your attendance today</div>
-                        {% if not record %}
-                            <h2 id="att-title" class="my-1">Not checked in yet</h2>
-                            <div id="att-sub">Work starts at 08:00</div>
-                        {% elif not record.check_out %}
-                            <h2 id="att-title" class="my-1">Checked in at {{ record.check_in|time:"h:i A" }}</h2>
-                            <div id="att-sub">{% if record.status == 'late' %}Late by {{ record.late_minutes }} minutes{% else %}On time{% endif %} · {{ record.branch.name }}</div>
-                        {% else %}
-                            <h2 id="att-title" class="my-1">Day complete</h2>
-                            <div id="att-sub">Checked out at {{ record.check_out|time:"h:i A" }}</div>
-                        {% endif %}
+                        <p class="mb-1">Your attendance today</p>
+                        <h2 id="att-title" class="mb-1 text-white">
+                            {% if not record %}Not checked in yet
+                            {% elif not record.check_out %}Checked in at {{ record.check_in|time:'h:i A' }}
+                            {% else %}Day complete{% endif %}
+                        </h2>
+                        <p id="att-sub" class="mb-0">
+                            {% if not record %}Work starts at 8:00 AM · check in from a company branch
+                            {% elif not record.check_out %}{% if record.status == 'late' %}Late by {{ record.late_minutes }} minutes{% else %}On time{% endif %} · {{ record.branch.name }}
+                            {% else %}Checked out at {{ record.check_out|time:'h:i A' }}{% endif %}
+                        </p>
                     </div>
+
                     {% csrf_token %}
                     {% if not record %}
-                        <button id="att-btn" class="btn btn-light" data-action="check_in">Check in</button>
+                    <button id="att-btn" class="btn btn-light" data-action="check_in">Check in</button>
                     {% elif not record.check_out %}
-                        <button id="att-btn" class="btn btn-light" data-action="check_out">Check out</button>
+                    <button id="att-btn" class="btn btn-light" data-action="check_out">Check out</button>
                     {% endif %}
                 </div>
                 <div id="att-error" class="alert alert-danger d-none"></div>
 
-                <!-- أرقام الفريق (للإدارة ومدير القسم) -->
+                <!-- إحصائيات الفريق (للمدراء والإدارة بس) -->
                 {% if today_records is not None %}
-                <div class="cards-grid">
-                    <div class="box mb-0">
-                        <div class="stat-label">Present today</div>
-                        <div class="stat-number">{{ present_count }} / {{ team_total }}</div>
+                <div class="cards-grid mb-4 mt-4">
+                    <div class="box">
+                        <p class="stat-label">Team members</p>
+                        <p class="stat-number">{{ team_total }}</p>
                     </div>
-                    <div class="box mb-0">
-                        <div class="stat-label">Late today</div>
-                        <div class="stat-number">{{ late_count }}</div>
+                    <div class="box">
+                        <p class="stat-label">Present today</p>
+                        <p class="stat-number">{{ present_count }}</p>
+                    </div>
+                    <div class="box">
+                        <p class="stat-label">Late today</p>
+                        <p class="stat-number">{{ late_count }}</p>
+                    </div>
+                    <div class="box">
+                        <p class="stat-label">Not checked in</p>
+                        <p class="stat-number">{{ absent_count }}</p>
                     </div>
                 </div>
 
-                <div class="box">
-                    <h2 class="h5 mb-3">Today's attendance</h2>
+                <div class="box mb-4">
+                    <h5 class="mb-3">Today's attendance</h5>
                     <div class="table-responsive">
-                        <table class="table table-hover align-middle mb-0">
+                        <table class="table align-middle">
                             <thead>
                                 <tr><th>Employee</th><th>Branch</th><th>Check in</th><th>Check out</th><th>Status</th></tr>
                             </thead>
                             <tbody>
                                 {% for r in today_records %}
-                                <tr>
-                                    <td class="fw-semibold">{{ r.employee.first_name }} {{ r.employee.last_name }}</td>
+                                <tr {% if r.status == 'late' %}class="table-warning"{% endif %}>
+                                    <td>{{ r.employee }}</td>
                                     <td>{{ r.branch.name }}</td>
-                                    <td>{{ r.check_in|time:"h:i A" }}</td>
-                                    <td>{{ r.check_out|time:"h:i A"|default:"—" }}</td>
+                                    <td>{{ r.check_in|time:'h:i A' }}</td>
+                                    <td>{{ r.check_out|time:'h:i A'|default:'-' }}</td>
                                     <td>
                                         {% if r.status == 'late' %}
-                                            <span class="badge rounded-pill text-bg-warning">Late · {{ r.late_minutes }} min</span>
+                                        <span class="badge text-bg-warning">Late {{ r.late_minutes }} min</span>
                                         {% else %}
-                                            <span class="badge rounded-pill text-bg-success">On time</span>
+                                        <span class="badge text-bg-success">On time</span>
                                         {% endif %}
                                     </td>
                                 </tr>
                                 {% empty %}
-                                <tr><td colspan="5" class="text-center text-muted py-4">No one has checked in yet.</td></tr>
+                                <tr><td colspan="5" class="text-center text-muted py-4">No one checked in yet today.</td></tr>
                                 {% endfor %}
                             </tbody>
                         </table>
@@ -77,25 +101,25 @@
                 </div>
                 {% endif %}
 
-                <!-- آخر 5 أيام إلي -->
-                <div class="box">
-                    <h2 class="h5 mb-3">My recent attendance</h2>
+                <!-- سجل حضوري -->
+                <div class="box mt-4">
+                    <h5 class="mb-3">My recent attendance</h5>
                     <div class="table-responsive">
-                        <table class="table align-middle mb-0">
+                        <table class="table align-middle">
                             <thead>
                                 <tr><th>Date</th><th>Check in</th><th>Check out</th><th>Status</th></tr>
                             </thead>
                             <tbody>
                                 {% for r in my_records %}
                                 <tr>
-                                    <td>{{ r.date|date:"D d M" }}</td>
-                                    <td>{{ r.check_in|time:"h:i A" }}</td>
-                                    <td>{{ r.check_out|time:"h:i A"|default:"—" }}</td>
+                                    <td>{{ r.date|date:'D, d M' }}</td>
+                                    <td>{{ r.check_in|time:'h:i A' }}</td>
+                                    <td>{{ r.check_out|time:'h:i A'|default:'-' }}</td>
                                     <td>
                                         {% if r.status == 'late' %}
-                                            <span class="badge rounded-pill text-bg-warning">Late · {{ r.late_minutes }} min</span>
+                                        <span class="badge text-bg-warning">Late {{ r.late_minutes }} min</span>
                                         {% else %}
-                                            <span class="badge rounded-pill text-bg-success">On time</span>
+                                        <span class="badge text-bg-success">On time</span>
                                         {% endif %}
                                     </td>
                                 </tr>
@@ -111,6 +135,7 @@
     </div>
 </div>
 {% endblock %}
+
 {% block scripts %}
 <script>
     const btn = document.getElementById('att-btn');
@@ -148,7 +173,7 @@
                     btn.classList.add('d-none');
                 }
 
-                // ⬅️ السطر الجديد: بعد ثانية ونص بنعمل reload عشان الجداول تتحدث
+                // بعد ثانية ونص بنعمل reload عشان الجداول تتحدث
                 setTimeout(function () { location.reload(); }, 1500);
             });
         });

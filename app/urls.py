@@ -16,4 +16,5 @@ urlpatterns = [
     path('leaves', views.leaves),
     path('leaves/add', views.add_leave),
     path('leaves/<int:id>/decide', views.decide_leave),
+    path('employees/<int:id>/ai_summary', views.ai_summary),
 ]

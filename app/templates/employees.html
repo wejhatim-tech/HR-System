@@ -27,7 +27,7 @@
                 </form>
 
                 <!-- جدول الموظفين -->
-                <div class="table-responsive"> 
+                <div class="table-responsive">
                     <table class="table table-hover align-middle">
                         <thead>
                             <tr>
@@ -36,7 +36,7 @@
                                 <th>Job title</th>
                                 <th>Hire date</th>
                                 <th>Role</th>
-                                {% if me.is_management %}<th></th>{% endif %}
+                                <th></th>
                             </tr>
                         </thead>
                         <tbody>
@@ -58,9 +58,14 @@
                                         <span class="badge rounded-pill text-bg-light">Employee</span>
                                     {% endif %}
                                 </td>
-                                {% if me.is_management %}
-                                <td><a href="/employees/{{ e.id }}/edit" class="btn btn-sm btn-outline-primary">Edit</a></td>
-                                {% endif %}
+                                <td class="text-nowrap">
+                                    <!-- زر ملخص الـ AI: للإدارة ومدير القسم -->
+                                    <button class="btn btn-sm btn-outline-primary ai-btn" data-id="{{ e.id }}"
+                                            data-bs-toggle="modal" data-bs-target="#aiModal">✨ AI summary</button>
+                                    {% if me.is_management %}
+                                    <a href="/employees/{{ e.id }}/edit" class="btn btn-sm btn-outline-secondary">Edit</a>
+                                    {% endif %}
+                                </td>
                             </tr>
                             {% empty %}
                             <tr>
@@ -74,4 +79,79 @@
         </main>
     </div>
 </div>
+
+<!-- نافذة ملخص الـ AI -->
+{% csrf_token %}
+<div class="modal fade" id="aiModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content" style="border-radius: 20px;">
+            <div class="modal-header">
+                <h5 class="modal-title" id="ai-title">AI summary</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <table class="table table-sm mb-3" id="ai-table"></table>
+                <div id="ai-body" class="alert alert-primary mb-0 d-none"></div>
+                <p id="ai-loading" class="text-muted mb-0">Generating summary... ⏳</p>
+            </div>
+            <div class="modal-footer">
+                <small class="text-muted me-auto">✨ Numbers from HiveHR · insight by AI</small>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.querySelectorAll('.ai-btn').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            const title = document.getElementById('ai-title');
+            const table = document.getElementById('ai-table');
+            const body = document.getElementById('ai-body');
+            const loading = document.getElementById('ai-loading');
+
+            // نفضّي النافذة ونبيّن "جاري التحميل"
+            title.textContent = 'AI summary';
+            table.innerHTML = '';
+            body.classList.add('d-none');
+            loading.classList.remove('d-none');
+            loading.textContent = 'Generating summary... ⏳';
+
+            const token = document.querySelector('[name=csrfmiddlewaretoken]').value;
+            fetch('/employees/' + btn.dataset.id + '/ai_summary', {
+                method: 'POST',
+                headers: { 'X-CSRFToken': token }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (!data.ok) {
+                    loading.textContent = data.msg;
+                    return;
+                }
+                loading.classList.add('d-none');
+                title.textContent = 'AI summary · ' + data.name;
+
+                // نبني الجدول من الأرقام
+                data.stats.forEach(function (row) {
+                    const tr = document.createElement('tr');
+                    const label = document.createElement('td');
+                    const value = document.createElement('td');
+                    label.className = 'text-muted';
+                    label.textContent = row[0];
+                    value.className = 'fw-semibold text-end';
+                    value.textContent = row[1];
+                    tr.appendChild(label);
+                    tr.appendChild(value);
+                    table.appendChild(tr);
+                });
+
+                // ملاحظة الـ AI
+                body.textContent = '💡 ' + data.summary;
+                body.classList.remove('d-none');
+            })
+            .catch(() => { loading.textContent = 'Something went wrong, please try again'; });
+        });
+    });
+</script>
 {% endblock %}
