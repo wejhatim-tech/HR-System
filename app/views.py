@@ -72,12 +72,10 @@ def employees(request):
     # الموظف العادي ما بيشوف هاي الصفحة
     if not me.is_management and not me.managed_departments.exists():
         return redirect('/dashboard')
-
     employee_list = models.Employee.objects.all().order_by('first_name')
     # مدير القسم بيشوف موظفين قسمه بس
     if not me.is_management:
         employee_list = employee_list.filter(department__manager=me)
-
     # البحث بالاسم أو المسمى الوظيفي
     search = request.GET.get('search', '')
     if search:
@@ -100,7 +98,7 @@ def employees(request):
     return render(request, 'employees.html', context)
 
 
-    
+
 def edit_employee(request, id):
     if 'user_id' not in request.session:
         return redirect('/')
@@ -146,3 +144,5 @@ def update_employee(request, id):
             employee.department.manager = None
             employee.department.save()
     return redirect('/employees')    
+
+    #edit_employee shows the form, and update_employee saves it.

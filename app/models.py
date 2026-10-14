@@ -15,7 +15,7 @@ class EmployeeManager(models.Manager):
         if not EMAIL_REGEX.match(formdata['email']):
             errors['email'] = "Please enter a valid email"
         elif Employee.objects.filter(email=formdata['email']).exists():
-            errors['email_used'] = "This email is already registered"
+            errors['register'] = "Unable to create account with these details."
         if len(formdata['password']) < 8:
             errors['password'] = "Password must be at least 8 characters"
         if formdata['password'] != formdata['confirm_password']:
@@ -31,7 +31,7 @@ class EmployeeManager(models.Manager):
             errors['password'] = "Password is required"
         return errors
 
-    def update_validation(self, formdata):
+    def update_validation(self, formdata): # هاد لل edit ألي بطلع عند فورم الموظف الي المدير بقدر يعدلو
         errors = {}
         if len(formdata['job_title']) > 0 and len(formdata['job_title']) < 2:
             errors['job_title'] = "Job title must be at least 2 characters"
@@ -44,7 +44,7 @@ class EmployeeManager(models.Manager):
             errors['hire_date'] = "Hire date can't be in the future"
         return errors
 
-
+#جدول لافرع الشركة
 class Branch(models.Model):
     name = models.CharField(max_length=100)
     ip_address = models.CharField(max_length=45)
@@ -53,8 +53,8 @@ class Branch(models.Model):
     def __str__(self):
         return self.name
 
-
-class Department(models.Model):
+#جدول لاقسام الشركة
+class Department(models.Model): #كل قسم الو مدير واحد وكل مدير ممكن يكون مدير لاكثر من قسم / One-to-many
     name = models.CharField(max_length=100)
     manager = models.ForeignKey('Employee', related_name='managed_departments',null=True, blank=True, on_delete=models.SET_NULL)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -62,8 +62,8 @@ class Department(models.Model):
     def __str__(self):
         return self.name
 
-
-class Employee(models.Model):
+#جدول لتسجيل بيانات الموظف
+class Employee(models.Model): #كل موظف بشتغل بقسم وكل قسم فيه اكتر من موظف / One-to-many
     first_name = models.CharField(max_length=45)
     last_name = models.CharField(max_length=45)
     email = models.CharField(max_length=255)
@@ -79,8 +79,8 @@ class Employee(models.Model):
     def __str__(self):
         return self.first_name + " " + self.last_name
 
-
-class Attendance(models.Model):
+#جدول لتسجيل الحضور والغياب
+class Attendance(models.Model): #كل موظف الو اكتر من سجل لتشجيل الحضور والغياب - وكل فرع الو سجلات كتير لتسجيل الحضور والغياب
     employee = models.ForeignKey(Employee, related_name='attendances', on_delete=models.CASCADE)
     branch = models.ForeignKey(Branch, related_name='attendances', on_delete=models.PROTECT)
     date = models.DateField()
@@ -91,7 +91,7 @@ class Attendance(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
-
+#جدول لنوع الاجازة
 class LeaveType(models.Model):
     name = models.CharField(max_length=50)  
     hours_per_year = models.IntegerField(null=True, blank=True)
@@ -101,8 +101,8 @@ class LeaveType(models.Model):
     def __str__(self):
         return self.name
 
-
-class LeaveRequest(models.Model):
+#جدول لطلب الاجازة
+class LeaveRequest(models.Model): # عنا 3 علاقات - مين طلب الاجازة - شو نوع الاجازة - مين اعطى موافقة
     employee = models.ForeignKey(Employee, related_name='leave_requests', on_delete=models.CASCADE)
     leave_type = models.ForeignKey(LeaveType, related_name='requests', on_delete=models.PROTECT)
     start_date = models.DateField()
