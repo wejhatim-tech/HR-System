@@ -6,7 +6,7 @@ HiveHR is a web-based HR system for small and medium companies. Employees check 
 
 Built by **Wejdan Hatim** as a solo project for the **Axsos Academy Full-Stack Bootcamp** (October 2026).
 
-🔗 **Live demo:** _coming soon_
+🔗 **Live demo:** http://51.20.31.169
 
 ---
 
