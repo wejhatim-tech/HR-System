@@ -258,3 +258,13 @@ h1, h2, h3, .logo-text {
         padding: 20px 16px;
     }
 }
+@media (max-width: 767px) {
+    .menu {
+        position: static;
+        height: auto;
+        min-height: auto;
+    }
+    #menuLinks a {
+        display: block;
+    }
+}
