@@ -1,11 +1,13 @@
 from django.shortcuts import render, redirect
 from django.contrib import messages
-from . import models
-import bcrypt
 from django.db.models import Q
 from django.http import JsonResponse
 from django.utils import timezone
 from datetime import datetime, time
+import bcrypt
+
+from .models import *
+from . import models
 
 WORK_START = time(8, 0)   # بداية الدوام
 GRACE_MINUTES = 10        # مهلة السماح بالدقائق
@@ -94,6 +96,13 @@ def dashboard(request):
         context['today_records'] = today_records
         context['present_count'] = today_records.count()
         context['late_count'] = today_records.filter(status='late').count()
+        context['absent_count'] = team.count() - today_records.count()
+
+    # الإشعارات: قرارات على إجازاتي لسا ما شفتها
+    unseen = me.leave_requests.exclude(status='pending').filter(is_seen=False)
+    context['notifications'] = list(unseen)   # list عشان ناخدهم قبل ما نعلّمهم
+    unseen.update(is_seen=True)               # خلص شافهم، ما يرجعوا يطلعوا
+
     return render(request, 'dashboard.html', context)
 
 
@@ -173,10 +182,12 @@ def check_out(request):
         'button': '',
     })
 
+
 def about(request):
     if 'user_id' not in request.session:
         return redirect('/')
     return render(request, 'about.html')
+
 
 # صفحة الموظفين
 def employees(request):
@@ -212,7 +223,7 @@ def employees(request):
     return render(request, 'employees.html', context)
 
 
-
+# edit_employee بيعرض الفورم، و update_employee بيحفظه
 def edit_employee(request, id):
     if 'user_id' not in request.session:
         return redirect('/')
@@ -257,6 +268,118 @@ def update_employee(request, id):
         elif employee.department.manager_id == employee.id:
             employee.department.manager = None
             employee.department.save()
-    return redirect('/employees')    
+    return redirect('/employees')
 
-    #edit_employee shows the form, and update_employee saves it.
+
+# ===================== الإجازات =====================
+
+# مين مسموحله يوافق على طلب
+def can_decide(me, leave):
+    emp = leave.employee
+    if emp.id == me.id:
+        return False
+    # مدير قسم، أو إدارة، أو قسمه بدون مدير ← الإدارة بتقرر
+    if emp.is_management or emp.managed_departments.exists() or not emp.department or not emp.department.manager:
+        return me.is_management
+    # موظف عادي ← مدير قسمه
+    return emp.department.manager.id == me.id
+
+
+def leaves(request):
+    if 'user_id' not in request.session:
+        return redirect('/')
+    me = Employee.objects.get(id=request.session['user_id'])
+
+    # كروت الرصيد (الأنواع اللي إلها رصيد سنوي بس)
+    balances = []
+    for t in LeaveType.objects.filter(hours_per_year__isnull=False):
+        used = used_hours(me, t, ['approved'])
+        pending = used_hours(me, t, ['pending'])
+        balances.append({
+            'name': t.name,
+            'total': hours_text(t.hours_per_year),
+            'used': hours_text(used),
+            'pending': hours_text(pending) if pending else '',
+            'remaining': hours_text(t.hours_per_year - used),
+        })
+
+    # الطلبات اللي بستناني أوافق عليها (للمدراء والإدارة بس)
+    to_approve = None
+    if me.is_management or me.managed_departments.exists():
+        to_approve = []
+        for r in LeaveRequest.objects.filter(status='pending').exclude(employee=me).order_by('created_at'):
+            if can_decide(me, r):
+                to_approve.append(r)
+
+    context = {
+        'me': me,
+        'balances': balances,
+        'leave_types': LeaveType.objects.all(),
+        'my_requests': me.leave_requests.order_by('-created_at'),
+        'to_approve': to_approve,
+    }
+    return render(request, 'leaves.html', context)
+
+
+def add_leave(request):
+    if 'user_id' not in request.session:
+        return redirect('/')
+    if request.method != 'POST':
+        return redirect('/leaves')
+    me = Employee.objects.get(id=request.session['user_id'])
+
+    errors = LeaveRequest.objects.leave_validation(request.POST, me)
+    if errors:
+        for key, value in errors.items():
+            messages.error(request, value)
+        return redirect('/leaves')
+
+    leave_type = LeaveType.objects.get(id=request.POST['leave_type'])
+    start = request.POST['start_date']
+    if leave_type.is_hourly:
+        end = start
+        start_time = request.POST['start_time']
+        end_time = request.POST['end_time']
+    else:
+        end = request.POST['end_date']
+        start_time = None
+        end_time = None
+
+    LeaveRequest.objects.create(
+        employee=me,
+        leave_type=leave_type,
+        start_date=start,
+        end_date=end,
+        start_time=start_time,
+        end_time=end_time,
+        hours=calc_hours(request.POST, leave_type),
+        reason=request.POST.get('reason', ''),
+    )
+    messages.success(request, 'Your leave request was sent')
+    return redirect('/leaves')
+
+
+# الموافقة أو الرفض (AJAX)
+def decide_leave(request, id):
+    if 'user_id' not in request.session:
+        return JsonResponse({'ok': False, 'msg': 'Please log in first'})
+    if request.method != 'POST':
+        return JsonResponse({'ok': False, 'msg': 'Invalid request'})
+    me = Employee.objects.get(id=request.session['user_id'])
+
+    leave = LeaveRequest.objects.filter(id=id).first()
+    if not leave or leave.status != 'pending':
+        return JsonResponse({'ok': False, 'msg': 'This request was already decided'})
+    if not can_decide(me, leave):
+        return JsonResponse({'ok': False, 'msg': 'You are not allowed to decide this request'})
+
+    action = request.POST.get('action')
+    if action not in ['approved', 'rejected']:
+        return JsonResponse({'ok': False, 'msg': 'Invalid action'})
+
+    leave.status = action
+    leave.decided_by = me
+    leave.decided_at = timezone.now()
+    leave.is_seen = False      # الموظف لسا ما شاف القرار ← بيطلعله إشعار على الـ Dashboard
+    leave.save()
+    return JsonResponse({'ok': True, 'status': action})

@@ -1,0 +1,191 @@
+{% extends 'base.html' %}
+{% block title %}Leaves · HiveHR{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        {% include 'menu.html' %}
+
+        <main class="col-md-9 col-lg-10 p-4">
+            <div class="content">
+                <h1>Leaves</h1>
+                <p class="text-muted mb-4">Your balance, requests and approvals</p>
+
+                {% for message in messages %}
+                <div class="alert {% if message.tags == 'error' %}alert-danger{% else %}alert-success{% endif %}">{{ message }}</div>
+                {% endfor %}
+
+                <!-- كروت الرصيد -->
+                <div class="cards-grid mb-4">
+                    {% for b in balances %}
+                    <div class="box">
+                        <p class="stat-label">{{ b.name }} remaining</p>
+                        <p class="stat-number">{{ b.remaining }}</p>
+                        <p class="text-muted small mb-0">
+                            Used {{ b.used }} of {{ b.total }}{% if b.pending %} · {{ b.pending }} pending{% endif %}
+                        </p>
+                    </div>
+                    {% endfor %}
+                </div>
+
+                <div class="row g-4 mb-4">
+                    <!-- فورم الطلب -->
+                    <div class="col-lg-5">
+                        <div class="box">
+                            <h5 class="mb-3">Request leave</h5>
+                            <form action="/leaves/add" method="post">
+                                {% csrf_token %}
+                                <label class="form-label">Leave type</label>
+                                <select name="leave_type" id="leave-type" class="form-select mb-3">
+                                    <option value="">Choose...</option>
+                                    {% for t in leave_types %}
+                                    <option value="{{ t.id }}" data-hourly="{{ t.is_hourly|yesno:'1,0' }}">{{ t.name }}</option>
+                                    {% endfor %}
+                                </select>
+
+                                <div class="row g-2 mb-3">
+                                    <div class="col-6">
+                                        <label class="form-label">From date</label>
+                                        <input type="date" name="start_date" class="form-control">
+                                    </div>
+                                    <div class="col-6" id="end-date-box">
+                                        <label class="form-label">To date</label>
+                                        <input type="date" name="end_date" class="form-control">
+                                    </div>
+                                </div>
+
+                                <!-- بيطلع بس للمغادرة -->
+                                <div class="d-none mb-3" id="time-box">
+                                    <div class="row g-2">
+                                        <div class="col-6">
+                                            <label class="form-label">From time</label>
+                                            <input type="time" name="start_time" class="form-control">
+                                        </div>
+                                        <div class="col-6">
+                                            <label class="form-label">To time</label>
+                                            <input type="time" name="end_time" class="form-control">
+                                        </div>
+                                    </div>
+                                    <p class="small text-muted mt-2 mb-0">Deducted from your annual balance (8 hours = 1 day)</p>
+                                </div>
+
+                                <label class="form-label">Reason (optional)</label>
+                                <textarea name="reason" rows="3" class="form-control mb-3"></textarea>
+                                <button class="btn btn-primary w-100">Send request</button>
+                            </form>
+                        </div>
+                    </div>
+
+                    <!-- طلباتي -->
+                    <div class="col-lg-7">
+                        <div class="box">
+                            <h5 class="mb-3">My requests</h5>
+                            <div class="table-responsive">
+                                <table class="table align-middle">
+                                    <thead>
+                                        <tr><th>Type</th><th>Dates</th><th>Hours</th><th>Status</th></tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for r in my_requests %}
+                                        <tr>
+                                            <td>{{ r.leave_type.name }}</td>
+                                            <td>
+                                                {{ r.start_date|date:'d M' }}{% if r.end_date != r.start_date %} – {{ r.end_date|date:'d M' }}{% endif %}
+                                                {% if r.start_time %}<br><small class="text-muted">{{ r.start_time|time:'H:i' }} – {{ r.end_time|time:'H:i' }}</small>{% endif %}
+                                            </td>
+                                            <td>{{ r.hours }}h</td>
+                                            <td>
+                                                <span class="badge {% if r.status == 'approved' %}text-bg-success{% elif r.status == 'rejected' %}text-bg-danger{% else %}text-bg-warning{% endif %}">{{ r.status|title }}</span>
+                                                {% if r.decided_by %}<br><small class="text-muted">by {{ r.decided_by }}</small>{% endif %}
+                                            </td>
+                                        </tr>
+                                        {% empty %}
+                                        <tr><td colspan="4" class="text-center text-muted py-4">No requests yet.</td></tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- الموافقات (للمدراء والإدارة) -->
+                {% if to_approve is not None %}
+                <div class="box">
+                    <h5 class="mb-3">Waiting for my approval</h5>
+                    <div class="table-responsive">
+                        <table class="table align-middle">
+                            <thead>
+                                <tr><th>Employee</th><th>Type</th><th>Dates</th><th>Hours</th><th>Reason</th><th></th></tr>
+                            </thead>
+                            <tbody>
+                                {% for r in to_approve %}
+                                <tr>
+                                    <td>{{ r.employee }}</td>
+                                    <td>{{ r.leave_type.name }}</td>
+                                    <td>
+                                        {{ r.start_date|date:'d M' }}{% if r.end_date != r.start_date %} – {{ r.end_date|date:'d M' }}{% endif %}
+                                        {% if r.start_time %}<br><small class="text-muted">{{ r.start_time|time:'H:i' }} – {{ r.end_time|time:'H:i' }}</small>{% endif %}
+                                    </td>
+                                    <td>{{ r.hours }}h</td>
+                                    <td>{{ r.reason|default:'-' }}</td>
+                                    <td id="actions-{{ r.id }}" class="text-nowrap">
+                                        <button class="btn btn-success btn-sm decide-btn" data-id="{{ r.id }}" data-action="approved">Approve</button>
+                                        <button class="btn btn-outline-danger btn-sm decide-btn" data-id="{{ r.id }}" data-action="rejected">Reject</button>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr><td colspan="6" class="text-center text-muted py-4">Nothing waiting for you.</td></tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </main>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // نبدّل بين تاريخ النهاية والوقت حسب نوع الإجازة
+    const typeSelect = document.getElementById('leave-type');
+    typeSelect.addEventListener('change', function () {
+        const option = typeSelect.options[typeSelect.selectedIndex];
+        const hourly = option.dataset.hourly === '1';
+        document.getElementById('time-box').classList.toggle('d-none', !hourly);
+        document.getElementById('end-date-box').classList.toggle('d-none', hourly);
+    });
+
+    // الموافقة أو الرفض بالـ AJAX
+    document.querySelectorAll('.decide-btn').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            const token = document.querySelector('[name=csrfmiddlewaretoken]').value;
+            const body = new FormData();
+            body.append('action', btn.dataset.action);
+
+            fetch('/leaves/' + btn.dataset.id + '/decide', {
+                method: 'POST',
+                headers: { 'X-CSRFToken': token },
+                body: body
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (!data.ok) {
+                    alert(data.msg);
+                    return;
+                }
+                // نبدّل الأزرار بالنتيجة
+                const cell = document.getElementById('actions-' + btn.dataset.id);
+                if (data.status === 'approved') {
+                    cell.innerHTML = '<span class="badge text-bg-success">Approved</span>';
+                } else {
+                    cell.innerHTML = '<span class="badge text-bg-danger">Rejected</span>';
+                }
+            });
+        });
+    });
+</script>
+{% endblock %}

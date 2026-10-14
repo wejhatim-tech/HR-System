@@ -13,4 +13,7 @@ urlpatterns = [
     path('employees/<int:id>/update', views.update_employee),
     path('check_in', views.check_in),
     path('check_out', views.check_out),
+    path('leaves', views.leaves),
+    path('leaves/add', views.add_leave),
+    path('leaves/<int:id>/decide', views.decide_leave),
 ]
