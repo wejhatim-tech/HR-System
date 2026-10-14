@@ -117,23 +117,5 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/6.1/howto/static-files/
 
+STATIC_URL = 'static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
-
-
-# Email
-# https://docs.djangoproject.com/en/6.1/topics/email/#topic-email-configuration
-
-# إعدادات الإيميل (Gmail) - طريقة Django 6.1
-MAILERS = {
-    'default': {
-        'BACKEND': 'django.core.mail.backends.smtp.EmailBackend',
-        'OPTIONS': {
-            'host': 'smtp.gmail.com',
-            'port': 587,
-            'use_tls': True,
-            'username': os.getenv('EMAIL_HOST_USER'),
-            'password': os.getenv('EMAIL_HOST_PASSWORD'),
-        },
-    },
-}
-DEFAULT_FROM_EMAIL = f"HiveHR <{os.getenv('EMAIL_HOST_USER')}>"
