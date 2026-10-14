@@ -8,7 +8,7 @@
 
         <main class="col-md-9 col-lg-10 p-4">
             <div class="content">
-                <h1>Welcome, {{ employee.first_name }}</h1>
+                <h1>Welcome, {{ employee.first_name|title }}</h1>
                 <p class="text-muted mb-4">{{ today|date:'l, j F Y' }}</p>
 
                 <!-- إشعارات قرارات الإجازات -->

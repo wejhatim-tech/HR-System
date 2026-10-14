@@ -8,7 +8,7 @@ import bcrypt
 import os
 from google import genai
 
-AI_MODEL = 'gemini-flash-latest'
+AI_MODEL = 'gemini-flash-lite-latest'
 
 from .models import *
 from . import models

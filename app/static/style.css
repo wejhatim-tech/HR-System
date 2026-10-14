@@ -233,6 +233,10 @@ h1, h2, h3, .logo-text {
     font-weight: 700;
     color: var(--primary-dark);
 }
+.btn-sm {
+    display: inline-flex;
+    align-items: center;
+}
 
 /* ========== الموبايل ========== */
 @media (max-width: 767px) {
