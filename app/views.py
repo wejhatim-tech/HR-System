@@ -3,6 +3,12 @@ from django.contrib import messages
 from . import models
 import bcrypt
 from django.db.models import Q
+from django.http import JsonResponse
+from django.utils import timezone
+from datetime import datetime, time
+
+WORK_START = time(8, 0)   # بداية الدوام
+GRACE_MINUTES = 10        # مهلة السماح بالدقائق
 
 
 def index(request):
@@ -51,13 +57,121 @@ def logout(request):
     return redirect('/')
 
 
+# الـ IP الحقيقي للمستخدم
+def get_ip(request):
+    forwarded = request.META.get('HTTP_X_FORWARDED_FOR')
+    # على AWS الطلب بيمر من سيرفر وسيط، والـ IP الحقيقي آخر واحد بالقائمة
+    if forwarded:
+        return forwarded.split(',')[-1].strip()
+    return request.META.get('REMOTE_ADDR')
+
+
 def dashboard(request):
     if 'user_id' not in request.session:
         return redirect('/')
+    me = models.Employee.objects.get(id=request.session['user_id'])
+    today = timezone.localdate()
+
+    # سجل حضوري اليوم (إذا موجود)
+    record = models.Attendance.objects.filter(employee=me, date=today).first()
+
+    # الفريق اللي بشوفه: الإدارة كل الموظفين، مدير القسم موظفين قسمه
+    team = None
+    if me.is_management:
+        team = models.Employee.objects.all()
+    elif me.managed_departments.exists():
+        team = models.Employee.objects.filter(department__manager=me)
+
     context = {
-        'employee': models.Employee.objects.get(id=request.session['user_id']),
+        'employee': me,
+        'today': today,
+        'record': record,
+        'my_records': me.attendances.order_by('-date')[:5],
     }
+    if team is not None:
+        today_records = models.Attendance.objects.filter(date=today, employee__in=team).order_by('check_in')
+        context['team_total'] = team.count()
+        context['today_records'] = today_records
+        context['present_count'] = today_records.count()
+        context['late_count'] = today_records.filter(status='late').count()
     return render(request, 'dashboard.html', context)
+
+
+# تسجيل الحضور (AJAX)
+def check_in(request):
+    if 'user_id' not in request.session:
+        return JsonResponse({'ok': False, 'msg': 'Please log in first'})
+    if request.method != 'POST':
+        return JsonResponse({'ok': False, 'msg': 'Invalid request'})
+    me = models.Employee.objects.get(id=request.session['user_id'])
+
+    # لازم يكون على شبكة أحد الفروع
+    branch = models.Branch.objects.filter(ip_address=get_ip(request)).first()
+    if not branch:
+        return JsonResponse({'ok': False, 'msg': 'You must be connected to a company branch network'})
+
+    # الوقت من السيرفر، مش من جهاز الموظف
+    now = timezone.localtime()
+    today = now.date()
+    if models.Attendance.objects.filter(employee=me, date=today).exists():
+        return JsonResponse({'ok': False, 'msg': 'You already checked in today'})
+
+    # حساب التأخير
+    start = datetime.combine(today, WORK_START, tzinfo=now.tzinfo)
+    late_minutes = int((now - start).total_seconds() // 60)
+    if late_minutes > GRACE_MINUTES:
+        status = 'late'
+    else:
+        status = 'on_time'
+        late_minutes = 0
+
+    models.Attendance.objects.create(
+        employee=me, branch=branch, date=today,
+        check_in=now, status=status, late_minutes=late_minutes,
+    )
+    if status == 'late':
+        sub = 'Late by ' + str(late_minutes) + ' minutes · ' + branch.name
+    else:
+        sub = 'On time · ' + branch.name
+    return JsonResponse({
+        'ok': True,
+        'title': 'Checked in at ' + now.strftime('%I:%M %p'),
+        'sub': sub,
+        'next': 'check_out',
+        'button': 'Check out',
+    })
+
+
+# تسجيل الانصراف (AJAX)
+def check_out(request):
+    if 'user_id' not in request.session:
+        return JsonResponse({'ok': False, 'msg': 'Please log in first'})
+    if request.method != 'POST':
+        return JsonResponse({'ok': False, 'msg': 'Invalid request'})
+    me = models.Employee.objects.get(id=request.session['user_id'])
+
+    branch = models.Branch.objects.filter(ip_address=get_ip(request)).first()
+    if not branch:
+        return JsonResponse({'ok': False, 'msg': 'You must be connected to a company branch network'})
+
+    now = timezone.localtime()
+    record = models.Attendance.objects.filter(employee=me, date=now.date()).first()
+    if not record:
+        return JsonResponse({'ok': False, 'msg': 'You have not checked in today'})
+    if record.check_out:
+        return JsonResponse({'ok': False, 'msg': 'You already checked out today'})
+
+    record.check_out = now
+    record.save()
+    # مدة الدوام
+    worked = int((now - record.check_in).total_seconds() // 60)
+    return JsonResponse({
+        'ok': True,
+        'title': 'Day complete',
+        'sub': 'Checked out at ' + now.strftime('%I:%M %p') + ' · worked ' + str(worked // 60) + 'h ' + str(worked % 60) + 'm',
+        'next': '',
+        'button': '',
+    })
 
 def about(request):
     if 'user_id' not in request.session:
